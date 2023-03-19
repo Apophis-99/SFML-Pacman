@@ -6,8 +6,10 @@ public class Map
 {
     private const int TileSize = 16;
 
-    private readonly List<List<bool>> _map;
-    private readonly List<List<Tile>> _tiles;
+    public (int X, int Y) Size => (_tiles.GetLength(0) * TileSize, _tiles.GetLength(1) * TileSize);
+
+    private readonly List<string> _map;
+    private readonly Tile[,] _tiles;
 
     private readonly List<(string connection, (int, int) coord)> _tileMapConnections;
 
@@ -16,26 +18,24 @@ public class Map
         var lines = File.ReadAllLines(tilesetPath);
         var texture = new Texture(lines[0].Replace("\r", ""));
         
-        var rawMap = File.ReadAllText(mapPath);
-        _tileMapConnections = new List<(string connection, (int, int) coord)>();
+        var rawMap = File.ReadAllLines(mapPath).ToList();
+        _tileMapConnections = new List<(string, (int, int))>();
 
-        _tiles = new List<List<Tile>>();
-        _map = new List<List<bool>>();
+        _tiles = new Tile[rawMap.Count, rawMap[0].Split(" ").Length];
+        _map = new List<string>();
 
-        for (var r = 0; r < rawMap.Split("\r\n").Length; r++)
+        for (var r = 0; r < rawMap.Count; r++)
         {
-            _map.Add(new List<bool>());
-            _tiles.Add(new List<Tile>());
-            for (var c = 0; c < rawMap.Split("\r\n")[r].Split(" ").Length; c++)
+            _map.Add(string.Join("", rawMap[r].Split(" ")));
+            for (var c = 0; c < rawMap[r].Split(" ").Length; c++)
             {
-                _map[r].Add(rawMap.Split("\r\n")[r].Split(" ")[c] == "1");
-                _tiles[r].Add(new Tile
+                _tiles[r, c] = new Tile
                 {
                     Texture = texture,
                     TileSize = TileSize,
                     TileCoord = (1, 1),
                     RelativePosition = (c * TileSize, r * TileSize)
-                });
+                };
             }
         }
         
@@ -47,7 +47,7 @@ public class Map
     {
         for (var r = 0; r < _map.Count; r++)
         {
-            for (var c = 0; c < _map[r].Count; c++)
+            for (var c = 0; c < _map[r].Length; c++)
             {
                 var connection = GetConnection(r, c);
                 
@@ -56,7 +56,7 @@ public class Map
                 
                 FixConnection(ref connection);
 
-                _tiles[r][c].TileCoord = FindConnection(connection);
+                _tiles[r, c].TileCoord = FindConnection(connection);
             }
         }
     }
@@ -130,11 +130,11 @@ public class Map
     {
         string GetAt(int row, int col)
         {
-            if (row < 0 || row > _map.Count - 1 || col < 0 || col > _map[row].Count - 1)
+            if (row < 0 || row > _map.Count - 1 || col < 0 || col > _map[row].Length - 1)
                 return "0";
-            return _map[row][col] ? "1" : "0";
+            return _map[row][col].ToString();
         }
-
+        
         var connection = $"{GetAt(r - 1, c - 1)}{GetAt(r - 1, c)}{GetAt(r - 1, c + 1)}{GetAt(r, c - 1)}{GetAt(r, c)}{GetAt(r, c + 1)}{GetAt(r + 1, c - 1)}{GetAt(r + 1, c)}{GetAt(r + 1, c + 1)}";
         
         return connection;
@@ -168,9 +168,12 @@ public class Map
 
     public void Render(ref RenderWindow window)
     {
-        foreach (var tile in _tiles.SelectMany(row => row))
+        for (var i = 0; i < _tiles.GetLength(0); i++)
         {
-            window.Draw(tile);
+            for (var j = 0; j < _tiles.GetLength(1); j++)
+            {
+                window.Draw(_tiles[i, j]);
+            }
         }
     }
 }
